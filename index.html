@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>업무 D-Day 대시보드</title>
+  <style>
+    :root {
+      --navy:#17324d; --blue:#1f6fb2; --ink:#17212b; --muted:#64748b;
+      --line:#dbe4ec; --surface:#ffffff; --canvas:#f3f7fa;
+      --overdue:#7f1d1d; --urgent:#dc2626; --soon:#ea580c;
+      --watch:#ca8a04; --safe:#16835b; --done:#64748b;
+      --focus:#0ea5e9; --shadow:0 12px 30px rgba(23,50,77,.08);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--canvas);color:var(--ink);font-family:Arial,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.55}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    :focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+    .shell{width:min(1180px,calc(100% - 32px));margin:0 auto;padding:28px 0 56px}
+    .hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:20px}
+    .eyebrow{margin:0 0 5px;color:var(--blue);font-weight:800;font-size:.82rem;letter-spacing:.06em}
+    h1{margin:0;color:var(--navy);font-size:clamp(1.8rem,4vw,2.65rem);letter-spacing:-.04em}
+    .subtitle{margin:7px 0 0;color:var(--muted)}
+    .date-box{min-width:180px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:15px 18px;box-shadow:var(--shadow)}
+    .date-box strong{display:block;color:var(--navy);font-size:1.05rem}
+    .badge{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:4px 9px;border-radius:999px;background:#e0f2fe;color:#075985;font-size:.76rem;font-weight:800}
+    .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+    .summary-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow)}
+    .summary-card span{display:block;color:var(--muted);font-size:.86rem}.summary-card strong{font-size:1.8rem;color:var(--navy)}
+    .layout{display:grid;grid-template-columns:360px 1fr;gap:18px;align-items:start}
+    .panel{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:var(--shadow)}
+    .panel h2{margin:0 0 14px;color:var(--navy);font-size:1.2rem}
+    .form-grid{display:grid;gap:12px}
+    label{display:block;font-weight:800;font-size:.9rem;color:#334155;margin-bottom:5px}
+    input[type="text"],input[type="date"],select,textarea{width:100%;border:1px solid #bac8d5;border-radius:10px;padding:10px 11px;background:#fff;color:var(--ink)}
+    textarea{min-height:76px;resize:vertical}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .check{display:flex;gap:8px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:10px;background:#f8fafc}
+    .check label{margin:0;font-weight:700}.check input{width:18px;height:18px}
+    .button-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+    .btn{border:0;border-radius:10px;padding:10px 13px;font-weight:800;background:var(--navy);color:#fff}
+    .btn.secondary{background:#e7eef5;color:var(--navy)}
+    .btn.danger{background:#fee2e2;color:#991b1b}.btn.small{padding:7px 9px;font-size:.8rem}
+    .tools{border-top:1px solid var(--line);margin-top:18px;padding-top:16px}
+    .tools h3{margin:0 0 9px;color:var(--navy);font-size:1rem}
+    .note{margin:10px 0 0;color:var(--muted);font-size:.78rem}
+    .main-stack{display:grid;gap:18px}
+    .priority{background:linear-gradient(135deg,#17324d,#24557c);color:#fff;border:0}
+    .priority h2{color:#fff}.priority .empty{color:#dbeafe}
+    .priority-list{display:grid;gap:8px;padding:0;margin:0;list-style:none}
+    .priority-item{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:10px 12px}
+    .priority-index{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#fff;color:var(--navy);font-weight:900}
+    .priority-item strong{display:block}.priority-item small{color:#dbeafe}
+    .dday-chip{white-space:nowrap;border-radius:999px;padding:5px 9px;background:#fff;color:var(--navy);font-weight:900;font-size:.8rem}
+    .filterbar{display:grid;grid-template-columns:1fr 150px 135px;gap:8px;margin-bottom:14px}
+    .cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .task-card{position:relative;overflow:hidden;border:1px solid var(--line);border-left:8px solid var(--safe);border-radius:14px;padding:14px;background:#fff}
+    .task-card.overdue{border-left-color:var(--overdue)}.task-card.urgent{border-left-color:var(--urgent)}.task-card.soon{border-left-color:var(--soon)}
+    .task-card.watch{border-left-color:var(--watch)}.task-card.safe{border-left-color:var(--safe)}.task-card.done{border-left-color:var(--done);background:#f1f5f9;color:#64748b}
+    .card-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .task-title{margin:0;font-size:1rem;color:var(--navy)}.done .task-title{text-decoration:line-through;color:#64748b}
+    .state{display:inline-flex;align-items:center;border-radius:999px;padding:4px 8px;font-size:.72rem;font-weight:900;color:#fff;background:var(--safe);white-space:nowrap}
+    .overdue .state{background:var(--overdue)}.urgent .state{background:var(--urgent)}.soon .state{background:var(--soon)}.watch .state{background:#9a6700}.done .state{background:var(--done)}
+    .meta{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0;color:var(--muted);font-size:.8rem}
+    .meta span{background:#f1f5f9;border-radius:7px;padding:3px 6px}.done .meta span{background:#e2e8f0}
+    .memo{margin:8px 0;color:#475569;font-size:.86rem;min-height:1.3em}
+    .card-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+    .empty{margin:0;color:var(--muted);padding:12px 0}
+    .storage-banner{margin-top:18px;border:1px solid #bae6fd;background:#f0f9ff;color:#075985;border-radius:14px;padding:13px 15px;font-size:.86rem}
+    #importFile{display:none}
+    .toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);background:#0f172a;color:#fff;padding:10px 15px;border-radius:10px;opacity:0;pointer-events:none;transition:.2s;z-index:10}
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    @media(max-width:900px){.layout{grid-template-columns:1fr}.summary{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:620px){.shell{width:min(100% - 20px,1180px);padding-top:18px}.hero{display:block}.date-box{margin-top:14px}.cards{grid-template-columns:1fr}.filterbar{grid-template-columns:1fr}.two{grid-template-columns:1fr}.priority-item{grid-template-columns:auto 1fr}.priority-item .dday-chip{grid-column:2}}
+    @media print{body{background:#fff}.shell{width:100%;padding:0}.panel,.summary-card,.date-box{box-shadow:none}.layout{grid-template-columns:1fr}.form-panel,.tools,.filterbar,.card-actions,.storage-banner{display:none}.cards{grid-template-columns:repeat(2,1fr)}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">EDUCATION OFFICE WORKBOARD</p>
+        <h1>업무 D-Day 대시보드</h1>
+        <p class="subtitle">공문 마감과 보고 기한을 놓치지 않고, 오늘의 우선순위를 한눈에 확인하세요.</p>
+      </div>
+      <div class="date-box" aria-label="오늘 날짜">
+        <span>오늘</span><strong id="todayText"></strong>
+        <span class="badge">● 가상 실습자료</span>
+      </div>
+    </header>
+
+    <section class="summary" aria-label="업무 요약">
+      <article class="summary-card"><span>오늘의 할 일</span><strong id="sumToday">0</strong></article>
+      <article class="summary-card"><span>2일 이내</span><strong id="sumUrgent">0</strong></article>
+      <article class="summary-card"><span>기한 초과</span><strong id="sumOverdue">0</strong></article>
+      <article class="summary-card"><span>완료</span><strong id="sumDone">0</strong></article>
+    </section>
+
+    <div class="layout">
+      <aside class="panel form-panel">
+        <h2 id="formTitle">새 업무 등록</h2>
+        <form id="taskForm" class="form-grid">
+          <input type="hidden" id="editingId">
+          <div><label for="title">업무명 *</label><input id="title" type="text" maxlength="80" required placeholder="예: 학교 제출 현황 확인"></div>
+          <div class="two">
+            <div><label for="category">업무 종류</label><select id="category"><option>공문 마감</option><option>보고 기한</option><option>회의/행사</option><option>기타</option></select></div>
+            <div><label for="priority">중요도</label><select id="priority"><option>높음</option><option selected>보통</option><option>낮음</option></select></div>
+          </div>
+          <div><label for="dueDate">마감일 *</label><input id="dueDate" type="date" required></div>
+          <div class="check"><input id="todayFlag" type="checkbox"><label for="todayFlag">오늘 할 일로 지정</label></div>
+          <div><label for="memo">메모</label><textarea id="memo" maxlength="200" placeholder="가상·공개 정보만 간단히 기록"></textarea></div>
+          <div class="button-row"><button class="btn" id="submitBtn" type="submit">업무 추가</button><button class="btn secondary" id="cancelEdit" type="button" hidden>수정 취소</button></div>
+        </form>
+
+        <section class="tools" aria-labelledby="backupTitle">
+          <h3 id="backupTitle">백업과 복원</h3>
+          <label for="importMode">가져오기 방식</label>
+          <select id="importMode"><option value="merge">기존 자료와 합치기</option><option value="replace">기존 자료를 바꾸기</option></select>
+          <div class="button-row">
+            <button class="btn secondary small" id="exportBtn" type="button">JSON 내보내기</button>
+            <button class="btn secondary small" id="importBtn" type="button">JSON 가져오기</button>
+            <input id="importFile" type="file" accept="application/json,.json">
+          </div>
+          <div class="button-row">
+            <button class="btn secondary small" id="restoreBtn" type="button">가상 샘플 복원</button>
+            <button class="btn danger small" id="clearBtn" type="button">전체 삭제</button>
+          </div>
+          <p class="note">백업 파일에는 입력한 업무 내용이 포함됩니다. 공유 전 내용을 확인하세요.</p>
+        </section>
+      </aside>
+
+      <div class="main-stack">
+        <section class="panel priority" aria-labelledby="priorityTitle">
+          <h2 id="priorityTitle">오늘의 우선순위</h2>
+          <ol id="priorityList" class="priority-list"></ol>
+          <p id="priorityEmpty" class="empty" hidden>오늘 지정 업무와 2일 이내 업무가 없습니다.</p>
+        </section>
+
+        <section class="panel" aria-labelledby="allTitle">
+          <h2 id="allTitle">전체 업무 D-Day</h2>
+          <div class="filterbar">
+            <div><label class="sr-only" for="search">업무 검색</label><input id="search" type="text" placeholder="업무명과 메모 검색"></div>
+            <div><label class="sr-only" for="categoryFilter">종류 필터</label><select id="categoryFilter"><option value="all">모든 종류</option><option>공문 마감</option><option>보고 기한</option><option>회의/행사</option><option>기타</option></select></div>
+            <div><label class="sr-only" for="statusFilter">상태 필터</label><select id="statusFilter"><option value="open">미완료</option><option value="all">전체</option><option value="done">완료</option></select></div>
+          </div>
+          <div id="taskCards" class="cards"></div>
+          <p id="cardsEmpty" class="empty" hidden>조건에 맞는 업무가 없습니다.</p>
+        </section>
+      </div>
+    </div>
+
+    <p class="storage-banner"><strong>저장 안내</strong> 입력 내용은 이 브라우저의 현재 사이트 주소에만 저장됩니다. 브라우저 데이터 삭제, 다른 기기 사용, GitHub Pages 주소 변경 시 보이지 않을 수 있으므로 JSON 백업을 정기적으로 내려받으세요.</p>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    'use strict';
+    const STORAGE_KEY = 'education-office-dday-tasks-v1';
+    const VERSION = 1;
+    const $ = (id) => document.getElementById(id);
+    let tasks = loadTasks();
+
+    function localDateString(date = new Date()) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    function offsetDate(days) {
+      const date = new Date(); date.setHours(12,0,0,0); date.setDate(date.getDate() + days);
+      return localDateString(date);
+    }
+    function makeSamples() {
+      return [
+        {title:'미제출 학교 현황 확인',category:'공문 마감',dueDate:offsetDate(-1),priority:'높음',todayFlag:true,memo:'가상 제출현황 기준으로 확인',done:false},
+        {title:'설명회 최종 안내 발송',category:'회의/행사',dueDate:offsetDate(0),priority:'높음',todayFlag:true,memo:'시간·장소·준비물 재확인',done:false},
+        {title:'주간 업무보고 제출',category:'보고 기한',dueDate:offsetDate(2),priority:'보통',todayFlag:false,memo:'공개 가능한 내용만 정리',done:false},
+        {title:'워크숍 운영계획 검토',category:'보고 기한',dueDate:offsetDate(6),priority:'보통',todayFlag:false,memo:'날짜와 제출물 확인',done:false},
+        {title:'다음 달 연수 장소 예약',category:'기타',dueDate:offsetDate(18),priority:'낮음',todayFlag:false,memo:'가상 일정',done:false}
+      ].map((t,i)=>({...t,id:`sample-${Date.now()}-${i}`,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}));
+    }
+    function loadTasks() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) { const samples = makeSamples(); localStorage.setItem(STORAGE_KEY, JSON.stringify(samples)); return samples; }
+        const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed.filter(isValidTask) : makeSamples();
+      } catch { return makeSamples(); }
+    }
+    function saveTasks() { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }
+    function isValidDate(value) { return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(`${value}T12:00:00`).getTime()); }
+    function isValidTask(t) { return t && typeof t.id==='string' && typeof t.title==='string' && isValidDate(t.dueDate) && ['높음','보통','낮음'].includes(t.priority) && typeof t.done==='boolean'; }
+    function daysUntil(dateString) {
+      const [y,m,d] = dateString.split('-').map(Number); const now = new Date();
+      return Math.round((Date.UTC(y,m-1,d)-Date.UTC(now.getFullYear(),now.getMonth(),now.getDate()))/86400000);
+    }
+    function ddayText(days) { return days < 0 ? `D+${Math.abs(days)}` : days === 0 ? 'D-Day' : `D-${days}`; }
+    function urgency(task) {
+      if (task.done) return {key:'done',label:'완료'};
+      const d=daysUntil(task.dueDate);
+      if (d<0) return {key:'overdue',label:`기한 초과 ${ddayText(d)}`};
+      if (d<=2) return {key:'urgent',label:`임박 ${ddayText(d)}`};
+      if (d<=7) return {key:'soon',label:`주의 ${ddayText(d)}`};
+      if (d<=14) return {key:'watch',label:`예정 ${ddayText(d)}`};
+      return {key:'safe',label:`여유 ${ddayText(d)}`};
+    }
+    const priorityRank={높음:0,보통:1,낮음:2};
+    function sortTasks(a,b){return Number(a.done)-Number(b.done)||daysUntil(a.dueDate)-daysUntil(b.dueDate)||priorityRank[a.priority]-priorityRank[b.priority]||a.title.localeCompare(b.title,'ko');}
+    function todayTasks(){return tasks.filter(t=>!t.done&&(t.todayFlag||daysUntil(t.dueDate)<=2)).sort((a,b)=>priorityRank[a.priority]-priorityRank[b.priority]||daysUntil(a.dueDate)-daysUntil(b.dueDate)||a.title.localeCompare(b.title,'ko'));}
+    function formatDate(value){const [y,m,d]=value.split('-');return `${y}. ${Number(m)}. ${Number(d)}.`;}
+    function showToast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>el.classList.remove('show'),2400);}
+    function text(tag,value,className){const el=document.createElement(tag);if(className)el.className=className;el.textContent=value;return el;}
+
+    function render(){
+      $('todayText').textContent=new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(new Date());
+      const today=todayTasks(); $('sumToday').textContent=today.length;
+      $('sumUrgent').textContent=tasks.filter(t=>!t.done&&daysUntil(t.dueDate)>=0&&daysUntil(t.dueDate)<=2).length;
+      $('sumOverdue').textContent=tasks.filter(t=>!t.done&&daysUntil(t.dueDate)<0).length;
+      $('sumDone').textContent=tasks.filter(t=>t.done).length;
+      renderPriority(today); renderCards();
+    }
+    function renderPriority(list){
+      const root=$('priorityList');root.replaceChildren();$('priorityEmpty').hidden=list.length>0;
+      list.forEach((task,index)=>{
+        const li=document.createElement('li');li.className='priority-item';
+        li.append(text('span',String(index+1),'priority-index'));
+        const body=document.createElement('div');body.append(text('strong',task.title));body.append(text('small',`${task.priority} · ${task.category}${task.todayFlag?' · 오늘 지정':''}`));li.append(body);
+        li.append(text('span',ddayText(daysUntil(task.dueDate)),'dday-chip'));root.append(li);
+      });
+    }
+    function renderCards(){
+      const query=$('search').value.trim().toLowerCase();const category=$('categoryFilter').value;const status=$('statusFilter').value;
+      const filtered=tasks.filter(t=>(!query||`${t.title} ${t.memo||''}`.toLowerCase().includes(query))&&(category==='all'||t.category===category)&&(status==='all'||(status==='done'?t.done:!t.done))).sort(sortTasks);
+      const root=$('taskCards');root.replaceChildren();$('cardsEmpty').hidden=filtered.length>0;
+      filtered.forEach(task=>{
+        const state=urgency(task);const card=document.createElement('article');card.className=`task-card ${state.key}`;
+        const top=document.createElement('div');top.className='card-top';top.append(text('h3',task.title,'task-title'));top.append(text('span',state.label,'state'));card.append(top);
+        const meta=document.createElement('div');meta.className='meta';[task.category,`중요도 ${task.priority}`,formatDate(task.dueDate),task.todayFlag?'오늘 지정':'자동 판정'].forEach(v=>meta.append(text('span',v)));card.append(meta);
+        card.append(text('p',task.memo||'메모 없음','memo'));
+        const actions=document.createElement('div');actions.className='card-actions';
+        actions.append(actionButton(task.done?'미완료로':'완료',()=>toggleDone(task.id),'btn secondary small'));
+        actions.append(actionButton('수정',()=>startEdit(task.id),'btn secondary small'));
+        actions.append(actionButton('삭제',()=>deleteTask(task.id),'btn danger small'));
+        card.append(actions);root.append(card);
+      });
+    }
+    function actionButton(label,handler,className){const b=document.createElement('button');b.type='button';b.className=className;b.textContent=label;b.addEventListener('click',handler);return b;}
+
+    $('taskForm').addEventListener('submit',(event)=>{
+      event.preventDefault();const title=$('title').value.trim();const dueDate=$('dueDate').value;if(!title||!isValidDate(dueDate)){showToast('업무명과 마감일을 확인해 주세요.');return;}
+      const id=$('editingId').value;const now=new Date().toISOString();const base={title,category:$('category').value,dueDate,priority:$('priority').value,todayFlag:$('todayFlag').checked,memo:$('memo').value.trim(),updatedAt:now};
+      if(id){const i=tasks.findIndex(t=>t.id===id);if(i>=0)tasks[i]={...tasks[i],...base};showToast('업무를 수정했습니다.');}
+      else{tasks.push({...base,id:`task-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,done:false,createdAt:now});showToast('업무를 추가했습니다.');}
+      saveTasks();resetForm();render();
+    });
+    function resetForm(){$('taskForm').reset();$('priority').value='보통';$('editingId').value='';$('formTitle').textContent='새 업무 등록';$('submitBtn').textContent='업무 추가';$('cancelEdit').hidden=true;$('title').focus();}
+    function startEdit(id){const t=tasks.find(x=>x.id===id);if(!t)return;$('editingId').value=t.id;$('title').value=t.title;$('category').value=t.category;$('priority').value=t.priority;$('dueDate').value=t.dueDate;$('todayFlag').checked=t.todayFlag;$('memo').value=t.memo||'';$('formTitle').textContent='업무 수정';$('submitBtn').textContent='수정 저장';$('cancelEdit').hidden=false;$('title').focus();window.scrollTo({top:0,behavior:'smooth'});}
+    $('cancelEdit').addEventListener('click',resetForm);
+    function toggleDone(id){tasks=tasks.map(t=>t.id===id?{...t,done:!t.done,updatedAt:new Date().toISOString()}:t);saveTasks();render();showToast('업무 상태를 변경했습니다.');}
+    function deleteTask(id){const t=tasks.find(x=>x.id===id);if(t&&confirm(`'${t.title}' 업무를 삭제할까요?`)){tasks=tasks.filter(x=>x.id!==id);saveTasks();render();showToast('업무를 삭제했습니다.');}}
+    ['search','categoryFilter','statusFilter'].forEach(id=>$(id).addEventListener(id==='search'?'input':'change',renderCards));
+
+    $('exportBtn').addEventListener('click',()=>{
+      const data={version:VERSION,exportedAt:new Date().toISOString(),tasks};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`업무_DDay_백업_${localDateString()}.json`;a.click();URL.revokeObjectURL(url);showToast('백업 파일을 내려받았습니다.');
+    });
+    $('importBtn').addEventListener('click',()=>$('importFile').click());
+    $('importFile').addEventListener('change',async(event)=>{
+      const file=event.target.files[0];if(!file)return;
+      try{
+        const data=JSON.parse(await file.text());if(!data||data.version!==VERSION||!Array.isArray(data.tasks)||!data.tasks.every(isValidTask))throw new Error('지원하지 않는 백업 형식');
+        if($('importMode').value==='replace'){if(!confirm('현재 업무를 백업 파일 내용으로 바꿀까요?'))return;tasks=data.tasks;}
+        else{const map=new Map(tasks.map(t=>[t.id,t]));data.tasks.forEach(t=>map.set(t.id,t));tasks=[...map.values()];}
+        saveTasks();render();showToast('백업 파일을 가져왔습니다.');
+      }catch(error){alert(`가져올 수 없습니다. ${error.message}`);}finally{event.target.value='';}
+    });
+    $('restoreBtn').addEventListener('click',()=>{if(confirm('가상 샘플 업무 5개를 추가할까요?')){tasks=[...tasks,...makeSamples()];saveTasks();render();showToast('가상 샘플을 추가했습니다.');}});
+    $('clearBtn').addEventListener('click',()=>{if(confirm('모든 업무를 삭제할까요? 이 작업은 되돌릴 수 없습니다.')){tasks=[];saveTasks();render();showToast('모든 업무를 삭제했습니다.');}});
+
+    render();
+  </script>
+</body>
+</html>
